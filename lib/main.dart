@@ -38,37 +38,21 @@ class _HomePageState extends State<HomePage> {
       Task('Såga brädor'),
       Task("Gymma"),
     ];
+
     return Scaffold(
+      backgroundColor: Color.fromARGB(255, 254, 216, 177),
       appBar: AppBar(
         title: const Text('Att göra lista'),
         centerTitle: true,
         actions: [IconButton(icon: Icon(Icons.dehaze), onPressed: () {})],
-        backgroundColor: const Color.fromARGB(255, 255, 142, 28),
+        backgroundColor: const Color.fromARGB(255, 111, 78, 55),
         elevation: 4,
         toolbarHeight: 45,
       ),
       body: ListView.builder(
         itemCount: task.length,
         itemBuilder: (context, index) {
-          if (index == task.length) {
-            return Divider(
-              color: Colors.black,
-              thickness: 1.5,
-              indent: 20,
-              endIndent: 20,
-            );
-          }
-          return Column(
-            children: [
-              TaskItem(task[index].task),
-              Divider(
-                color: Colors.black,
-                thickness: 1.5,
-                indent: 20,
-                endIndent: 20,
-              ),
-            ],
-          );
+          return TaskItem(task[index].task, key: Key(task[index].task));
         },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -87,7 +71,7 @@ class _HomePageState extends State<HomePage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),
             ),
-            backgroundColor: const Color.fromARGB(255, 251, 145, 40),
+            backgroundColor: const Color.fromARGB(255, 111, 78, 55),
             child: Icon(Icons.add),
           ),
         ),
@@ -98,7 +82,7 @@ class _HomePageState extends State<HomePage> {
 
 class TaskItem extends StatefulWidget {
   final String task;
-  TaskItem(this.task, {super.key});
+  const TaskItem(this.task, {super.key});
 
   @override
   State<TaskItem> createState() => _TaskItemState();
@@ -107,29 +91,47 @@ class TaskItem extends StatefulWidget {
 class _TaskItemState extends State<TaskItem> {
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(5),
-          child: IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.check_box_outline_blank),
-            iconSize: 40,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+      child: ElevatedButton(
+        onPressed: () {},
+        style: ElevatedButton.styleFrom(
+          elevation: 5,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
           ),
+          backgroundColor: const Color.fromARGB(255, 166, 123, 91),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 5),
         ),
-        Expanded(
-          child: Text(
-            widget.task,
-            style: const TextStyle(fontSize: 24),
-          ),
+        child: Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 0),
+              child: IconButton(
+                onPressed: () {},
+                icon: Icon(Icons.check_box_outline_blank),
+                iconSize: 40,
+                color: Colors.black,
+              ),
+            ),
+            Expanded(
+              child: Text(
+                widget.task,
+                style: const TextStyle(
+                  fontSize: 18,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: () {},
+              icon: Icon(Icons.delete),
+              color: Colors.black,
+              iconSize: 30,
+            ),
+          ],
         ),
-        IconButton(
-          onPressed: () {},
-          icon: Icon(Icons.delete),
-          color: (Colors.black),
-          iconSize: 33,
-        ),
-      ],
+      ),
     );
   }
 }
@@ -148,7 +150,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       appBar: AppBar(
         title: const Text('Lägg till uppgift'),
         centerTitle: true,
-        backgroundColor: const Color.fromARGB(255, 255, 142, 28),
+        backgroundColor: const Color.fromARGB(255, 255, 125, 41),
       ),
       body: Column(
         children: [
