@@ -1,4 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+class MyState extends ChangeNotifier {
+  List<Task> _tasks = [];
+
+  List<Task> get tasks => _tasks;
+
+  void addTask(String newTask) {
+    _tasks.add(Task(newTask));
+    notifyListeners();
+  }
+
+  void removeTask(Task task) {
+    _tasks.removeWhere((t) => t == task);
+    notifyListeners();
+  }
+
+  void toggleTask(Task task) {
+    final index = _tasks.indexOf(task);
+    if (index != -1) {
+      _tasks[index].isDone = !_tasks[index].isDone;
+      notifyListeners();
+    }
+  }
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -15,8 +40,19 @@ class MyApp extends StatelessWidget {
 
 class Task {
   final String task;
+  bool isDone;
 
-  Task(this.task);
+  Task(this.task, {this.isDone = false});
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is Task && other.task == task;
+  }
+
+  @override
+  int get hashCode => task.hashCode;
 }
 
 class HomePage extends StatefulWidget {
@@ -27,37 +63,77 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  Filter _filter = Filter.all;
+
   @override
   Widget build(BuildContext context) {
-    List<Task> task = [
-      Task('Köpa mjölk'),
-      Task('Köpa ägg'),
-      Task('Kratta löv'),
-      Task('Klappa hunden'),
-      Task('Mata barnen'),
-      Task('Såga brädor'),
-      Task("Gymma"),
-    ];
+    List<Task> task = context.watch<MyState>().tasks;
+
+    List<Task> filteredTasks;
+    switch (_filter) {
+      case Filter.completed:
+        filteredTasks = task.where((task) => task.isDone).toList();
+        break;
+      case Filter.incomplete:
+        filteredTasks = task.where((task) => !task.isDone).toList();
+        break;
+      case Filter.all:
+      default:
+        filteredTasks = task;
+    }
 
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 254, 216, 177),
       appBar: AppBar(
         title: const Text('Att göra lista'),
+        titleTextStyle: TextStyle(
+          color: Colors.black,
+          fontSize: 25,
+        ),
         centerTitle: true,
-        actions: [IconButton(icon: Icon(Icons.dehaze), onPressed: () {})],
+        actions: [
+          PopupMenuButton<Filter>(
+            icon: Icon(
+              Icons.filter_list,
+              color: Colors.black,
+            ),
+            color: const Color.fromARGB(255, 254, 216, 177),
+            onSelected: (Filter result) {
+              setState(
+                () {
+                  _filter = result;
+                },
+              );
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<Filter>>[
+              const PopupMenuItem<Filter>(
+                value: Filter.all,
+                child: Text('Alla'),
+              ),
+              const PopupMenuItem<Filter>(
+                value: Filter.completed,
+                child: Text('Klara'),
+              ),
+              const PopupMenuItem<Filter>(
+                value: Filter.incomplete,
+                child: Text('Ej klara'),
+              ),
+            ],
+          ),
+        ],
         backgroundColor: const Color.fromARGB(255, 111, 78, 55),
-        elevation: 4,
         toolbarHeight: 45,
       ),
       body: ListView.builder(
-        itemCount: task.length,
+        itemCount: filteredTasks.length,
         itemBuilder: (context, index) {
-          return TaskItem(task[index].task, key: Key(task[index].task));
+          return TaskItem(filteredTasks[index],
+              key: Key(filteredTasks[index].task));
         },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 10, right: 35),
+        padding: const EdgeInsets.only(bottom: 10, right: 55),
         child: SizedBox(
           width: 70,
           height: 70,
@@ -65,7 +141,7 @@ class _HomePageState extends State<HomePage> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AddTaskPage()),
+                MaterialPageRoute(builder: (context) => AddTaskPage()),
               );
             },
             shape: RoundedRectangleBorder(
@@ -80,52 +156,61 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class TaskItem extends StatefulWidget {
-  final String task;
+enum Filter {
+  all,
+  completed,
+  incomplete,
+}
+
+class TaskItem extends StatelessWidget {
+  final Task task;
+
   const TaskItem(this.task, {super.key});
 
   @override
-  State<TaskItem> createState() => _TaskItemState();
-}
-
-class _TaskItemState extends State<TaskItem> {
-  @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
       child: ElevatedButton(
         onPressed: () {},
         style: ElevatedButton.styleFrom(
-          elevation: 5,
+          fixedSize: const Size(0, 85),
+          elevation: 8,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(30),
           ),
-          backgroundColor: const Color.fromARGB(255, 166, 123, 91),
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 5),
+          backgroundColor: const Color.fromARGB(255, 219, 169, 121),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
         ),
         child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 0),
-              child: IconButton(
-                onPressed: () {},
-                icon: Icon(Icons.check_box_outline_blank),
-                iconSize: 40,
-                color: Colors.black,
-              ),
+            IconButton(
+              onPressed: () {
+                context.read<MyState>().toggleTask(task);
+              },
+              icon: Icon(task.isDone
+                  ? Icons.check_box
+                  : Icons.check_box_outline_blank),
+              iconSize: 40,
+              color: Colors.black,
             ),
             Expanded(
               child: Text(
-                widget.task,
-                style: const TextStyle(
-                  fontSize: 18,
-                  color: Colors.black,
+                task.task,
+                style: TextStyle(
+                  fontSize: 22,
+                  color: task.isDone ? Colors.grey : Colors.black,
+                  decoration: task.isDone
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none,
                 ),
               ),
             ),
             IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.delete),
+              onPressed: () {
+                context.read<MyState>().removeTask(task);
+              },
+              icon: const Icon(Icons.delete),
               color: Colors.black,
               iconSize: 30,
             ),
@@ -136,25 +221,24 @@ class _TaskItemState extends State<TaskItem> {
   }
 }
 
-class AddTaskPage extends StatefulWidget {
-  const AddTaskPage({super.key});
+class AddTaskPage extends StatelessWidget {
+  AddTaskPage({super.key});
 
-  @override
-  State<AddTaskPage> createState() => _AddTaskPageState();
-}
+  final TextEditingController _controller = TextEditingController();
 
-class _AddTaskPageState extends State<AddTaskPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color.fromARGB(255, 254, 216, 177),
       appBar: AppBar(
         title: const Text('Lägg till uppgift'),
         centerTitle: true,
-        backgroundColor: const Color.fromARGB(255, 255, 125, 41),
+        backgroundColor: const Color.fromARGB(255, 111, 78, 55),
       ),
       body: Column(
         children: [
           TextField(
+            controller: _controller,
             decoration: const InputDecoration(
               hintText: 'Skriv in uppgift',
               hintStyle: TextStyle(fontSize: 18),
@@ -164,10 +248,13 @@ class _AddTaskPageState extends State<AddTaskPage> {
           ElevatedButton(
             style: ButtonStyle(
               backgroundColor: WidgetStateProperty.all<Color>(
-                const Color.fromARGB(255, 251, 145, 40),
+                const Color.fromARGB(255, 111, 78, 55),
               ),
             ),
             onPressed: () {
+              if (_controller.text.isNotEmpty) {
+                context.read<MyState>().addTask(_controller.text);
+              }
               Navigator.pop(context);
             },
             child: const Text('Lägg till',
@@ -180,5 +267,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
 }
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => MyState(),
+      child: const MyApp(),
+    ),
+  );
 }
