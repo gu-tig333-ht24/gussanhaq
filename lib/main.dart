@@ -1,28 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
+import './api.dart';
 
 class MyState extends ChangeNotifier {
   List<Task> _tasks = [];
 
   List<Task> get tasks => _tasks;
 
-  void addTask(String newTask) {
-    _tasks.add(Task(newTask));
+  Future<void> UpdateTask() async {
+    _tasks = await GetTasks();
     notifyListeners();
-  }
-
-  void removeTask(Task task) {
-    _tasks.removeWhere((t) => t == task);
-    notifyListeners();
-  }
-
-  void toggleTask(Task task) {
-    final index = _tasks.indexOf(task);
-    if (index != -1) {
-      _tasks[index].isDone = !_tasks[index].isDone;
-      notifyListeners();
-    }
   }
 }
 
@@ -42,18 +29,17 @@ class MyApp extends StatelessWidget {
 class Task {
   final String task;
   bool isDone;
+  final String id;
 
-  Task(this.task, {this.isDone = false});
+  Task(this.task, this.id, {this.isDone = false});
 
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-
-    return other is Task && other.task == task;
+  factory Task.fromJson(Map<String, dynamic> json) {
+    return Task(
+      json['title'],
+      json['id'],
+      isDone: json['done'],
+    );
   }
-
-  @override
-  int get hashCode => task.hashCode;
 }
 
 class HomePage extends StatefulWidget {
@@ -67,6 +53,11 @@ class _HomePageState extends State<HomePage> {
   Filter _filter = Filter.all;
 
   @override
+  void initState() {
+    super.initState();
+    context.read<MyState>().UpdateTask();
+  }
+
   Widget build(BuildContext context) {
     List<Task> task = context.watch<MyState>().tasks;
 
@@ -186,8 +177,9 @@ class TaskItem extends StatelessWidget {
         child: Row(
           children: [
             IconButton(
-              onPressed: () {
-                context.read<MyState>().toggleTask(task);
+              onPressed: () async {
+                await UpdateTaskCheck(task);
+                context.read<MyState>().UpdateTask();
               },
               icon: Icon(task.isDone
                   ? Icons.check_box
@@ -208,8 +200,9 @@ class TaskItem extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: () {
-                context.read<MyState>().removeTask(task);
+              onPressed: () async {
+                await DeleteTask(task.id);
+                context.read<MyState>().UpdateTask();
               },
               icon: const Icon(Icons.delete),
               color: Colors.black,
@@ -252,9 +245,12 @@ class AddTaskPage extends StatelessWidget {
                 const Color.fromARGB(255, 111, 78, 55),
               ),
             ),
-            onPressed: () {
+            onPressed: () async {
               if (_controller.text.isNotEmpty) {
-                context.read<MyState>().addTask(_controller.text);
+                var text = _controller.text;
+                await PostTask(Task(text, ''));
+                _controller.clear();
+                await context.read<MyState>().UpdateTask();
               }
               Navigator.pop(context);
             },
