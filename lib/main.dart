@@ -11,6 +11,21 @@ class MyState extends ChangeNotifier {
     _tasks = await GetTasks();
     notifyListeners();
   }
+
+  Future<void> AddTask(Task task) async {
+    await PostTask(task);
+    await UpdateTask();
+  }
+
+  Future<void> RemoveTask(String id) async {
+    await DeleteTask(id);
+    await UpdateTask();
+  }
+
+  Future<void> ToggleTaskCompletion(Task task) async {
+    await UpdateTaskCheck(task);
+    await UpdateTask();
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -178,8 +193,7 @@ class TaskItem extends StatelessWidget {
           children: [
             IconButton(
               onPressed: () async {
-                await UpdateTaskCheck(task);
-                context.read<MyState>().UpdateTask();
+                await context.read<MyState>().ToggleTaskCompletion(task);
               },
               icon: Icon(task.isDone
                   ? Icons.check_box
@@ -201,8 +215,7 @@ class TaskItem extends StatelessWidget {
             ),
             IconButton(
               onPressed: () async {
-                await DeleteTask(task.id);
-                context.read<MyState>().UpdateTask();
+                await context.read<MyState>().RemoveTask(task.id);
               },
               icon: const Icon(Icons.delete),
               color: Colors.black,
@@ -248,9 +261,9 @@ class AddTaskPage extends StatelessWidget {
             onPressed: () async {
               if (_controller.text.isNotEmpty) {
                 var text = _controller.text;
-                await PostTask(Task(text, ''));
+                var NewTask = Task(text, '');
+                await context.read<MyState>().AddTask(NewTask);
                 _controller.clear();
-                await context.read<MyState>().UpdateTask();
               }
               Navigator.pop(context);
             },
