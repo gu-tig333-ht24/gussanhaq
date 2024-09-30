@@ -1,4 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import './api.dart';
+
+class MyState extends ChangeNotifier {
+  List<Task> _tasks = [];
+
+  List<Task> get tasks => _tasks;
+
+  Future<void> UpdateTask() async {
+    _tasks = await GetTasks();
+    notifyListeners();
+  }
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -15,112 +28,246 @@ class MyApp extends StatelessWidget {
 
 class Task {
   final String task;
+  bool isDone;
+  final String id;
 
-  Task(this.task);
-}
+  Task(this.task, this.id, {this.isDone = false});
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    List<Task> task = [
-      Task('Köpa mjölk'),
-      Task('Köpa ägg'),
-      Task('Kratta löv'),
-      Task('Klappa hunden'),
-      Task('Mata barnen'),
-      Task('Såga brädor'),
-      Task("Gymma"),
-      Task('Köpa mjölk'),
-      Task('Köpa ägg'),
-      Task('Kratta löv'),
-      Task('Klappa hunden'),
-      Task('Mata barnen'),
-      Task('Såga brädor'),
-      Task("Gymma"),
-      Task('Köpa mjölk'),
-    ];
-    return Scaffold(
-        appBar: AppBar(
-          title: const Text('Att göra lista'),
-          centerTitle: true,
-          actions: [IconButton(icon: Icon(Icons.dehaze), onPressed: null)],
-          backgroundColor: const Color.fromARGB(255, 255, 142, 28),
-          elevation: 4,
-          toolbarHeight: 45,
-        ),
-        body: ListView.separated(
-          itemCount: task.length,
-          separatorBuilder: (context, index) => const Divider(
-            color: Colors.black,
-            thickness: 1,
-          ),
-          itemBuilder: (context, index) {
-            return TaskItem(task[index].task);
-          },
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        floatingActionButton: Padding(
-            padding: const EdgeInsets.only(bottom: 10, right: 35),
-            child: SizedBox(
-              width: 70,
-              height: 70,
-              child: FloatingActionButton(
-                onPressed: () {
-                  //Framtida logik
-                },
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                backgroundColor: const Color.fromARGB(255, 251, 145, 40),
-                child: Icon(Icons.add),
-              ),
-            )));
+  factory Task.fromJson(Map<String, dynamic> json) {
+    return Task(
+      json['title'],
+      json['id'],
+      isDone: json['done'],
+    );
   }
 }
 
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  Filter _filter = Filter.all;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<MyState>().UpdateTask();
+  }
+
+  Widget build(BuildContext context) {
+    List<Task> task = context.watch<MyState>().tasks;
+
+    List<Task> filteredTasks;
+    switch (_filter) {
+      case Filter.completed:
+        filteredTasks = task.where((task) => task.isDone).toList();
+        break;
+      case Filter.incomplete:
+        filteredTasks = task.where((task) => !task.isDone).toList();
+        break;
+      case Filter.all:
+      default:
+        filteredTasks = task;
+    }
+
+    return Scaffold(
+      backgroundColor: Color.fromARGB(255, 254, 216, 177),
+      appBar: AppBar(
+        title: const Text('Att göra lista'),
+        titleTextStyle: TextStyle(
+          color: Colors.black,
+          fontSize: 25,
+        ),
+        centerTitle: true,
+        actions: [
+          PopupMenuButton<Filter>(
+            icon: Icon(
+              Icons.filter_list,
+              color: Colors.black,
+            ),
+            color: const Color.fromARGB(255, 254, 216, 177),
+            onSelected: (Filter result) {
+              setState(
+                () {
+                  _filter = result;
+                },
+              );
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<Filter>>[
+              const PopupMenuItem<Filter>(
+                value: Filter.all,
+                child: Text('Alla'),
+              ),
+              const PopupMenuItem<Filter>(
+                value: Filter.completed,
+                child: Text('Klara'),
+              ),
+              const PopupMenuItem<Filter>(
+                value: Filter.incomplete,
+                child: Text('Ej klara'),
+              ),
+            ],
+          ),
+        ],
+        backgroundColor: const Color.fromARGB(255, 111, 78, 55),
+        toolbarHeight: 45,
+      ),
+      body: ListView.builder(
+        itemCount: filteredTasks.length,
+        itemBuilder: (context, index) {
+          return TaskItem(filteredTasks[index],
+              key: Key(filteredTasks[index].task));
+        },
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 10, right: 55),
+        child: SizedBox(
+          width: 70,
+          height: 70,
+          child: FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AddTaskPage()),
+              );
+            },
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+            ),
+            backgroundColor: const Color.fromARGB(255, 111, 78, 55),
+            child: Icon(Icons.add),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum Filter {
+  all,
+  completed,
+  incomplete,
+}
+
 class TaskItem extends StatelessWidget {
-  final String task;
-  TaskItem(this.task, {super.key});
+  final Task task;
+
+  const TaskItem(this.task, {super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(10),
-          child: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: Colors.black,
-                width: 2.5,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
+      child: ElevatedButton(
+        onPressed: () {},
+        style: ElevatedButton.styleFrom(
+          fixedSize: const Size(0, 85),
+          elevation: 8,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          backgroundColor: const Color.fromARGB(255, 219, 169, 121),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: () async {
+                await UpdateTaskCheck(task);
+                context.read<MyState>().UpdateTask();
+              },
+              icon: Icon(task.isDone
+                  ? Icons.check_box
+                  : Icons.check_box_outline_blank),
+              iconSize: 40,
+              color: Colors.black,
+            ),
+            Expanded(
+              child: Text(
+                task.task,
+                style: TextStyle(
+                  fontSize: 22,
+                  color: task.isDone ? Colors.grey : Colors.black,
+                  decoration: task.isDone
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none,
+                ),
               ),
             ),
-          ),
+            IconButton(
+              onPressed: () async {
+                await DeleteTask(task.id);
+                context.read<MyState>().UpdateTask();
+              },
+              icon: const Icon(Icons.delete),
+              color: Colors.black,
+              iconSize: 30,
+            ),
+          ],
         ),
-        Expanded(
-          child: Text(
-            task,
-            style: const TextStyle(fontSize: 24),
+      ),
+    );
+  }
+}
+
+class AddTaskPage extends StatelessWidget {
+  AddTaskPage({super.key});
+
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Color.fromARGB(255, 254, 216, 177),
+      appBar: AppBar(
+        title: const Text('Lägg till uppgift'),
+        centerTitle: true,
+        backgroundColor: const Color.fromARGB(255, 111, 78, 55),
+      ),
+      body: Column(
+        children: [
+          TextField(
+            controller: _controller,
+            decoration: const InputDecoration(
+              hintText: 'Skriv in uppgift',
+              hintStyle: TextStyle(fontSize: 18),
+              contentPadding: EdgeInsets.all(20),
+            ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(right: 10),
-          child: const Icon(
-            Icons.delete,
-            size: 30,
+          ElevatedButton(
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.all<Color>(
+                const Color.fromARGB(255, 111, 78, 55),
+              ),
+            ),
+            onPressed: () async {
+              if (_controller.text.isNotEmpty) {
+                var text = _controller.text;
+                await PostTask(Task(text, ''));
+                _controller.clear();
+                await context.read<MyState>().UpdateTask();
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Lägg till',
+                style: TextStyle(fontSize: 18, color: Colors.black)),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => MyState(),
+      child: const MyApp(),
+    ),
+  );
 }
